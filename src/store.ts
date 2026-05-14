@@ -57,7 +57,7 @@ const SUPPORT_PROMPT_IMAGE_THRESHOLD = 50
 const falRecoveryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const customRecoveryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const openAIWatchdogTimers = new Map<string, ReturnType<typeof setTimeout>>()
-const OPENAI_INTERRUPTED_ERROR = '请求中断'
+const OPENAI_INTERRUPTED_ERROR = '页面刷新或关闭导致生成请求中断。当前同步图片接口不支持刷新后恢复，请重新生成。'
 
 function createOpenAITimeoutError(timeoutSeconds: number) {
   return `请求超时：超过 ${timeoutSeconds} 秒仍未完成，请稍后重试或提高超时时间。`

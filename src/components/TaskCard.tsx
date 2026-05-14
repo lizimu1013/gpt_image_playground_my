@@ -188,6 +188,7 @@ export default function TaskCard({
   const isFalReconnecting = task.status === 'error' && task.falRecoverable
   const isCustomReconnecting = task.status === 'error' && task.customRecoverable
   const showRunningTimer = task.status === 'running' || isFalReconnecting || isCustomReconnecting
+  const showErrorSummary = task.status === 'error' && !isFalReconnecting && !isCustomReconnecting && Boolean(task.error)
   const swipeBgClass = showSwipeAction
     ? swipeStartedSelected
       ? 'bg-gray-500 dark:bg-gray-600'
@@ -385,9 +386,17 @@ export default function TaskCard({
         {/* 右侧信息区域 */}
         <div className="flex-1 p-3 flex flex-col min-w-0">
           <div className="flex-1 min-h-0 mb-2 overflow-hidden">
-            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3">
+            <p className={`text-sm text-gray-700 dark:text-gray-300 leading-relaxed ${showErrorSummary ? 'line-clamp-2' : 'line-clamp-3'}`}>
               {task.prompt || '(无提示词)'}
             </p>
+            {showErrorSummary && (
+              <p
+                className="mt-1 line-clamp-2 text-xs leading-5 text-red-500 dark:text-red-400"
+                title={task.error || undefined}
+              >
+                {task.error}
+              </p>
+            )}
           </div>
           <div className="mt-auto flex flex-col gap-1.5">
             {/* 参数与信息：横向滚动 */}

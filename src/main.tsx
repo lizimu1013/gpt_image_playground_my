@@ -3,11 +3,18 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './index.css'
 import { installMobileViewportGuards } from './lib/viewport'
+import { isEmbeddedMode } from './lib/embedMode'
 
 installMobileViewportGuards()
 
 if ('serviceWorker' in navigator) {
-  if (import.meta.env.PROD) {
+  if (isEmbeddedMode()) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations
+        .filter((registration) => registration.scope.includes('/playground/'))
+        .forEach((registration) => registration.unregister())
+    })
+  } else if (import.meta.env.PROD) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch((error) => {
         console.error('Service worker registration failed:', error)

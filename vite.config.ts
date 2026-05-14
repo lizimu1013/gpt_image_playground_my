@@ -19,10 +19,14 @@ function loadDevProxyConfig() {
 
 export default defineConfig(({ command }) => {
   const devProxyConfig = command === 'serve' ? loadDevProxyConfig() : null
+  // Allow embedding builds (e.g. sub2api 集成) to override the base path
+  // via VITE_BASE_PATH=/playground/. Falls back to relative './' for the
+  // default standalone Vercel/CF/GitHub Pages deployments.
+  const basePath = process.env.VITE_BASE_PATH ?? './'
 
   return {
     plugins: [react()],
-    base: './',
+    base: basePath,
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
       __DEV_PROXY_CONFIG__: JSON.stringify(devProxyConfig),

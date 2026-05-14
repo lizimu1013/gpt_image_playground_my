@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../store'
-import { useVersionCheck } from '../hooks/useVersionCheck'
 import { useTooltip } from '../hooks/useTooltip'
 import { dismissAllTooltips } from '../lib/tooltipDismiss'
+import { isEmbeddedMode } from '../lib/embedMode'
 import ViewportTooltip from './ViewportTooltip'
 import HelpModal from './HelpModal'
 
@@ -19,7 +19,6 @@ function isInstalledPwa() {
 export default function Header() {
   const setShowSettings = useStore((s) => s.setShowSettings)
   const setConfirmDialog = useStore((s) => s.setConfirmDialog)
-  const { hasUpdate, latestRelease, dismiss } = useVersionCheck()
   const [showHelp, setShowHelp] = useState(false)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isPwaInstalled, setIsPwaInstalled] = useState(isInstalledPwa)
@@ -27,6 +26,9 @@ export default function Header() {
   const installTooltip = useTooltip()
   const helpTooltip = useTooltip()
   const settingsTooltip = useTooltip()
+  // 嵌入模式（sub2api 等宿主通过 iframe 集成）下隐藏会破坏宿主体验的入口：
+  // PWA 安装在 iframe 内无意义；设置入口因 API 凭据由宿主注入而被锁定。
+  const embedded = isEmbeddedMode()
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -89,32 +91,9 @@ export default function Header() {
     <>
       <header data-no-drag-select className="safe-area-top fixed top-0 left-0 right-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur border-b border-gray-200 dark:border-white/[0.08]">
         <div className="safe-area-x safe-header-inner max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex-1 min-w-0 pr-2">
-            <h1 className="inline-flex items-start relative">
-              <a
-                href="https://github.com/CookSleep/gpt_image_playground"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[17px] sm:text-lg font-bold tracking-tight text-gray-800 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-              >
-                GPT Image Playground
-              </a>
-              {hasUpdate && latestRelease && (
-                <a
-                  href={latestRelease.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={dismiss}
-                  className="absolute -right-1 -top-1 translate-x-full -translate-y-1/4 px-1 py-0.5 rounded-[4px] border border-red-500/30 text-[9px] font-black bg-red-500 text-white hover:bg-red-600 transition-all animate-fade-in leading-none shadow-sm"
-                  title={`新版本 ${latestRelease.tag}`}
-                >
-                  NEW
-                </a>
-              )}
-            </h1>
-          </div>
+          <div className="flex-1 min-w-0 pr-2" />
           <div className="flex items-center gap-1 shrink-0">
-            {!isPwaInstalled && (
+            {!isPwaInstalled && !embedded && (
               <div
                 className="relative"
                 {...installTooltip.handlers}
@@ -176,7 +155,7 @@ export default function Header() {
                 操作指南
               </ViewportTooltip>
             </div>
-            <div
+            {!embedded && <div
               className="relative"
               {...settingsTooltip.handlers}
             >
@@ -208,7 +187,7 @@ export default function Header() {
               <ViewportTooltip visible={settingsTooltip.visible} className="whitespace-nowrap">
                 设置
               </ViewportTooltip>
-            </div>
+            </div>}
           </div>
         </div>
       </header>
