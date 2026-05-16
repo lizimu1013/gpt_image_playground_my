@@ -291,6 +291,22 @@ export default function InputBar() {
   const filterStatus = useStore((s) => s.filterStatus)
   const filterFavorite = useStore((s) => s.filterFavorite)
   const searchQuery = useStore((s) => s.searchQuery)
+  const runningTaskCount = useMemo(
+    () => tasks.filter((task) => task.status === 'running').length,
+    [tasks],
+  )
+
+  useEffect(() => {
+    if (runningTaskCount === 0) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [runningTaskCount])
 
   const filteredTasks = useMemo(() => {
     const sorted = [...tasks].sort((a, b) => b.createdAt - a.createdAt)
@@ -1795,6 +1811,21 @@ export default function InputBar() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
+            </div>
+          </div>
+        )}
+        {runningTaskCount > 0 && (
+          <div className="mb-3 flex justify-center px-1">
+            <div
+              role="status"
+              className="flex max-w-full items-center gap-2 rounded-full border border-amber-200/80 bg-amber-50/95 px-3 py-2 text-xs font-medium text-amber-800 shadow-sm backdrop-blur dark:border-amber-400/20 dark:bg-amber-500/12 dark:text-amber-200 sm:text-sm"
+            >
+              <svg className="h-4 w-4 shrink-0 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              </svg>
+              <span className="truncate">
+                图片生成中，请不要刷新或关闭页面；当前任务刷新后可能无法恢复
+              </span>
             </div>
           </div>
         )}
