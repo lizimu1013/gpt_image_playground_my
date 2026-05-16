@@ -6,6 +6,7 @@ import {
   DEFAULT_SETTINGS,
   normalizeSettings,
 } from './apiProfiles'
+import { getTaskProfileDisplayName, URL_PARAM_PROFILE_NAME } from './apiProfileDisplay'
 import { buildSettingsFromUrlParams, clearUrlSettingParams, hasUrlSettingParams } from './urlSettings'
 
 describe('URL settings params', () => {
@@ -19,12 +20,19 @@ describe('URL settings params', () => {
     expect(next.profiles).toHaveLength(2)
     expect(next.activeProfileId).not.toBe(current.activeProfileId)
     expect(next.profiles.find((profile) => profile.id === next.activeProfileId)).toMatchObject({
-      name: 'URL 参数配置',
+      name: URL_PARAM_PROFILE_NAME,
       provider: 'openai',
       baseUrl: 'https://api.example.com/v1',
       apiKey: 'test-key',
       model: DEFAULT_IMAGES_MODEL,
     })
+    expect(getTaskProfileDisplayName({
+      apiProfileId: next.activeProfileId,
+      apiProfileName: URL_PARAM_PROFILE_NAME,
+    })).toBeNull()
+    expect(getTaskProfileDisplayName({
+      apiProfileName: 'URL 参数配置',
+    })).toBeNull()
   })
 
   it('uses model from URL params for OpenAI profiles', () => {
@@ -62,6 +70,33 @@ describe('URL settings params', () => {
 
     expect(next.profiles).toHaveLength(2)
     expect(next.activeProfileId).toBe(existingProfile.id)
+  })
+
+  it('applies explicit codexCli URL params to an existing matching profile', () => {
+    const existingProfile = createDefaultOpenAIProfile({
+      id: 'existing-openai',
+      name: 'Existing OpenAI',
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'test-key',
+      codexCli: true,
+    })
+    const current = normalizeSettings({
+      ...DEFAULT_SETTINGS,
+      profiles: [createDefaultOpenAIProfile(), existingProfile],
+      activeProfileId: DEFAULT_SETTINGS.activeProfileId,
+    })
+    const next = normalizeSettings({
+      ...current,
+      ...buildSettingsFromUrlParams(current, new URLSearchParams('apiUrl=https://api.example.com/v1&apiKey=test-key&codexCli=false')),
+    })
+    const active = next.profiles.find((profile) => profile.id === next.activeProfileId)
+
+    expect(next.profiles).toHaveLength(2)
+    expect(active).toMatchObject({
+      id: existingProfile.id,
+      codexCli: false,
+    })
+    expect(next.codexCli).toBe(false)
   })
 
   it('creates an OpenAI profile from legacy params even when fal is active', () => {

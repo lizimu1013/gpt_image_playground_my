@@ -1,4 +1,5 @@
 import type { ApiMode, AppSettings } from '../types'
+import { URL_PARAM_PROFILE_NAME } from './apiProfileDisplay'
 import { normalizeBaseUrl } from './devProxy'
 import {
   createDefaultOpenAIProfile,
@@ -97,7 +98,7 @@ export function buildSettingsFromUrlParams(currentSettings: Partial<AppSettings>
     const profileApiMode = apiMode ?? 'images'
     const profile = createDefaultOpenAIProfile({
       id: createUrlProfileId(new Set(settings.profiles.map((item) => item.id))),
-      name: 'URL 参数配置',
+      name: URL_PARAM_PROFILE_NAME,
       apiMode: profileApiMode,
       model: profileApiMode === 'responses' ? DEFAULT_RESPONSES_MODEL : DEFAULT_IMAGES_MODEL,
     })
@@ -108,7 +109,12 @@ export function buildSettingsFromUrlParams(currentSettings: Partial<AppSettings>
 
     const existingProfile = settings.profiles.find((item) => getProfileDedupKey(item) === getProfileDedupKey(profile))
     if (existingProfile) {
-      return normalizeSettings({ ...settings, activeProfileId: existingProfile.id })
+      const profiles = codexCliParam === null
+        ? settings.profiles
+        : settings.profiles.map((item) =>
+          item.id === existingProfile.id ? { ...item, codexCli: profile.codexCli } : item,
+        )
+      return normalizeSettings({ ...settings, profiles, activeProfileId: existingProfile.id })
     }
 
     return normalizeSettings({

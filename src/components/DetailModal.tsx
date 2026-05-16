@@ -8,6 +8,7 @@ import { ActualValueBadge, DetailParamValue } from '../lib/paramDisplay'
 import { copyBlobToClipboard, copyTextToClipboard, getClipboardFailureMessage } from '../lib/clipboard'
 import { createMaskPreviewDataUrl } from '../lib/canvasImage'
 import { dismissAllTooltips } from '../lib/tooltipDismiss'
+import { getTaskProfileDisplayName } from '../lib/apiProfileDisplay'
 import { CloseIcon, CodeIcon, CopyIcon, EditIcon, LinkIcon, TrashIcon } from './icons'
 
 import ViewportTooltip from './ViewportTooltip'
@@ -189,9 +190,10 @@ export default function DetailModal() {
   const isOpenAiTask = (taskProvider ?? 'openai') === 'openai'
   const showPromptWarning = Boolean(isOpenAiTask && currentOutputImageId && (!currentRevisedPrompt || showRevisedPrompt) && !hasHandledPromptWarning)
   const taskProviderName = taskProvider === 'fal' ? 'fal.ai' : taskProvider ? 'OpenAI' : '未知'
-  const taskProfileName = task.apiProfileName || '未知'
-  const taskModel = task.apiModel || '未知'
-  const showSourceInfo = Boolean(task.apiProvider || task.apiProfileName || task.apiModel)
+  const taskProfileDisplayName = getTaskProfileDisplayName(task)
+  const taskModel = task.apiModel || ''
+  const sourceDetailText = [taskProfileDisplayName, taskModel].filter(Boolean).join(' · ')
+  const showSourceInfo = Boolean(task.apiProvider || sourceDetailText)
   const isFalReconnecting = task.status === 'error' && task.falRecoverable
   const isCustomReconnecting = task.status === 'error' && task.customRecoverable
   const showErrorDetails = task.status === 'error' && !isFalReconnecting && !isCustomReconnecting
@@ -639,7 +641,7 @@ export default function DetailModal() {
                 <span className="text-gray-400 dark:text-gray-500">来源</span>
                 <br />
                 <span className="font-medium text-gray-700 dark:text-gray-200">{taskProviderName}</span>
-                <span className="text-gray-400 dark:text-gray-500"> · {taskProfileName} · {taskModel}</span>
+                {sourceDetailText && <span className="text-gray-400 dark:text-gray-500"> · {sourceDetailText}</span>}
               </div>
             )}
             <div className="grid grid-cols-2 gap-2 text-xs mb-4">

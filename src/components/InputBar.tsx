@@ -12,6 +12,7 @@ import { getSafeBoundingClientRect } from '../lib/domRect'
 import Select from './Select'
 import SizePickerModal from './SizePickerModal'
 import ViewportTooltip from './ViewportTooltip'
+import HelpModal from './HelpModal'
 
 
 function getMentionTagTextLength(el: Element) {
@@ -409,6 +410,9 @@ export default function InputBar() {
   const [isDragging, setIsDragging] = useState(false)
   const [submitHover, setSubmitHover] = useState(false)
   const [attachHover, setAttachHover] = useState(false)
+  const [helpHover, setHelpHover] = useState(false)
+  const [settingsHover, setSettingsHover] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [compressionHintVisible, setCompressionHintVisible] = useState(false)
   const [moderationHintVisible, setModerationHintVisible] = useState(false)
   const [sizeHintVisible, setSizeHintVisible] = useState(false)
@@ -1612,6 +1616,74 @@ export default function InputBar() {
     </div>
   )
 
+  const renderUtilityButtons = () => (
+    <>
+      <div
+        className="relative"
+        onMouseEnter={() => setHelpHover(true)}
+        onMouseLeave={() => setHelpHover(false)}
+      >
+        <ButtonTooltip visible={helpHover} text="操作指南" />
+        <button
+          type="button"
+          onClick={() => {
+            dismissAllTooltips()
+            setShowHelp(true)
+          }}
+          className="p-2.5 rounded-xl bg-gray-200 dark:bg-white/[0.06] hover:bg-gray-300 dark:hover:bg-white/[0.1] text-gray-500 dark:text-gray-300 transition-all shadow-sm hover:shadow"
+          aria-label="操作指南"
+          title="操作指南"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            viewBox="0 0 24 24"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <path d="M12 17h.01" />
+          </svg>
+        </button>
+      </div>
+      <div
+        className="relative"
+        onMouseEnter={() => setSettingsHover(true)}
+        onMouseLeave={() => setSettingsHover(false)}
+      >
+        <ButtonTooltip visible={settingsHover} text="设置" />
+        <button
+          type="button"
+          onClick={() => {
+            dismissAllTooltips()
+            setShowSettings(true)
+          }}
+          className="p-2.5 rounded-xl bg-gray-200 dark:bg-white/[0.06] hover:bg-gray-300 dark:hover:bg-white/[0.1] text-gray-500 dark:text-gray-300 transition-all shadow-sm hover:shadow"
+          aria-label="设置"
+          title="设置"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+          </svg>
+        </button>
+      </div>
+    </>
+  )
+
   return (
     <>
       {/* 全屏拖拽遮罩 */}
@@ -1842,6 +1914,7 @@ export default function InputBar() {
               {renderParams('grid-cols-6')}
 
               <div className="flex gap-2 flex-shrink-0 mb-0.5">
+                {renderUtilityButtons()}
                 <div
                   className="relative"
                   onMouseEnter={() => setAttachHover(true)}
@@ -1867,7 +1940,7 @@ export default function InputBar() {
                   onMouseEnter={() => setSubmitHover(true)}
                   onMouseLeave={() => setSubmitHover(false)}
                 >
-                  <ButtonTooltip visible={!hasSubmitApiConfig && submitHover} text="尚未完成 API 配置，请在右上角设置中进行" />
+                  <ButtonTooltip visible={!hasSubmitApiConfig && submitHover} text="尚未完成 API 配置，请在设置中进行" />
                   <button
                     onClick={() => hasSubmitApiConfig ? submitTask() : setShowSettings(true)}
                     disabled={hasSubmitApiConfig ? !canSubmit : false}
@@ -1916,12 +1989,13 @@ export default function InputBar() {
                     </svg>
                   </button>
                 </div>
+                {renderUtilityButtons()}
                 <div
                   className="relative flex-1"
                   onMouseEnter={() => setSubmitHover(true)}
                   onMouseLeave={() => setSubmitHover(false)}
                 >
-                  <ButtonTooltip visible={!hasSubmitApiConfig && submitHover} text="尚未完成 API 配置，请在右上角设置中进行" />
+                  <ButtonTooltip visible={!hasSubmitApiConfig && submitHover} text="尚未完成 API 配置，请在设置中进行" />
                   <button
                     onClick={() => hasSubmitApiConfig ? submitTask() : setShowSettings(true)}
                     disabled={hasSubmitApiConfig ? !canSubmit : false}
@@ -1951,6 +2025,7 @@ export default function InputBar() {
           />
         </div>
       </div>
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </>
   )
 }
