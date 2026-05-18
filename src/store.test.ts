@@ -51,7 +51,7 @@ vi.mock('./lib/db', () => {
   }
 })
 import { clearImages, putImage } from './lib/db'
-import { editOutputs, getPersistedState, getTaskApiProfile, markInterruptedOpenAIRunningTasks, reuseConfig, submitTask, useStore } from './store'
+import { editOutputs, getImageGenerationRateLimit, getPersistedState, getTaskApiProfile, markInterruptedOpenAIRunningTasks, reuseConfig, submitTask, useStore } from './store'
 
 const imageA = { id: 'image-a', dataUrl: 'data:image/png;base64,a' }
 const imageB = { id: 'image-b', dataUrl: 'data:image/png;base64,b' }
@@ -171,6 +171,71 @@ describe('interrupted OpenAI running tasks', () => {
     expect(result.tasks.find((item) => item.id === 'fal-running')).toEqual(falRunning)
     expect(result.tasks.find((item) => item.id === 'custom-running')).toEqual(customAsyncRunning)
     expect(result.tasks.find((item) => item.id === 'done-task')).toEqual(doneTask)
+  })
+})
+
+describe('image generation rate limit', () => {
+  beforeEach(() => {
+    const openaiProfile = createDefaultOpenAIProfile({ apiKey: 'test-key' })
+    useStore.setState({
+      settings: normalizeSettings({
+        ...DEFAULT_SETTINGS,
+        profiles: [openaiProfile],
+        activeProfileId: openaiProfile.id,
+      }),
+      prompt: 'prompt',
+      inputImages: [],
+      maskDraft: null,
+      params: { ...DEFAULT_PARAMS },
+      tasks: [],
+      showSettings: false,
+      toast: null,
+      confirmDialog: null,
+      showToast: vi.fn(),
+      setConfirmDialog: vi.fn(),
+    })
+  })
+
+  it('counts requested images in the last minute', () => {
+    const now = 120_000
+    const limit = getImageGenerationRateLimit([
+      task({ id: 'recent-1', params: { ...DEFAULT_PARAMS, n: 1 }, createdAt: now - 20_000 }),
+      task({ id: 'recent-2', params: { ...DEFAULT_PARAMS, n: 1 }, createdAt: now - 59_000 }),
+      task({ id: 'old', params: { ...DEFAULT_PARAMS, n: 10 }, createdAt: now - 61_000 }),
+    ], 1, now)
+
+    expect(limit.allowed).toBe(false)
+    expect(limit.used).toBe(2)
+    expect(limit.remaining).toBe(0)
+    expect(limit.retryAfterMs).toBe(1_000)
+  })
+
+  it('blocks a single request for more than two images', async () => {
+    useStore.setState({ params: { ...DEFAULT_PARAMS, n: 3 } })
+
+    await submitTask()
+
+    expect(useStore.getState().tasks).toEqual([])
+    expect(useStore.getState().showToast).toHaveBeenCalledWith(
+      expect.stringContaining('当前请求 3 张'),
+      'error',
+    )
+  })
+
+  it('blocks submitting after two images were requested in the last minute', async () => {
+    const now = Date.now()
+    useStore.setState({
+      tasks: [task({ id: 'recent', params: { ...DEFAULT_PARAMS, n: 2 }, createdAt: now - 30_000 })],
+      params: { ...DEFAULT_PARAMS, n: 1 },
+    })
+
+    await submitTask()
+
+    expect(useStore.getState().tasks).toHaveLength(1)
+    expect(useStore.getState().showToast).toHaveBeenCalledWith(
+      expect.stringContaining('1 分钟内最多生成 2 张图'),
+      'error',
+    )
   })
 })
 

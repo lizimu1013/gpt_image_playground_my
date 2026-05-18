@@ -28,7 +28,7 @@ export default defineConfig(({ command }) => {
     plugins: [react()],
     base: basePath,
     define: {
-      __APP_VERSION__: JSON.stringify(pkg.version),
+      __APP_VERSION__: JSON.stringify(pkg.displayVersion ?? pkg.version),
       __DEV_PROXY_CONFIG__: JSON.stringify(devProxyConfig),
     },
     server: {

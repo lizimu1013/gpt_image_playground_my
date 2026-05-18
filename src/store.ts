@@ -54,10 +54,47 @@ const MAX_THUMBNAIL_BACKFILL_CONCURRENT = 4
 const FAL_RECOVERY_POLL_MS = 10_000
 const CUSTOM_RECOVERY_POLL_MS = 10_000
 const SUPPORT_PROMPT_IMAGE_THRESHOLD = 50
+export const IMAGE_GENERATION_RATE_LIMIT_WINDOW_MS = 60_000
+export const IMAGE_GENERATION_RATE_LIMIT_MAX_IMAGES = 2
 const falRecoveryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const customRecoveryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const openAIWatchdogTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const OPENAI_INTERRUPTED_ERROR = '页面刷新或关闭导致生成请求中断。当前同步图片接口不支持刷新后恢复，请重新生成。'
+
+export function getImageGenerationRateLimit(
+  tasks: TaskRecord[],
+  requestedImages: number,
+  now = Date.now(),
+) {
+  const requested = Math.max(1, Math.floor(requestedImages || 1))
+  const windowStart = now - IMAGE_GENERATION_RATE_LIMIT_WINDOW_MS
+  const recentTasks = tasks.filter((task) => task.createdAt > windowStart)
+  const used = recentTasks.reduce((sum, task) => sum + Math.max(1, Math.floor(task.params?.n || 1)), 0)
+  const remaining = Math.max(0, IMAGE_GENERATION_RATE_LIMIT_MAX_IMAGES - used)
+  const resetAt = recentTasks.length > 0
+    ? Math.min(...recentTasks.map((task) => task.createdAt)) + IMAGE_GENERATION_RATE_LIMIT_WINDOW_MS
+    : now
+
+  return {
+    allowed: requested <= remaining,
+    requested,
+    used,
+    remaining,
+    resetAt,
+    retryAfterMs: requested <= remaining ? 0 : Math.max(0, resetAt - now),
+  }
+}
+
+function formatImageGenerationRateLimitMessage(limit: ReturnType<typeof getImageGenerationRateLimit>) {
+  if (limit.requested > IMAGE_GENERATION_RATE_LIMIT_MAX_IMAGES) {
+    return `图片生成限流：1 分钟内最多生成 ${IMAGE_GENERATION_RATE_LIMIT_MAX_IMAGES} 张图。当前请求 ${limit.requested} 张，请将数量调到 ${IMAGE_GENERATION_RATE_LIMIT_MAX_IMAGES} 张以内。`
+  }
+  const retryAfterSeconds = Math.max(1, Math.ceil(limit.retryAfterMs / 1000))
+  if (limit.remaining > 0) {
+    return `图片生成限流：1 分钟内最多生成 ${IMAGE_GENERATION_RATE_LIMIT_MAX_IMAGES} 张图，当前还可生成 ${limit.remaining} 张。请减少请求数量或 ${retryAfterSeconds} 秒后再试。`
+  }
+  return `图片生成限流：1 分钟内最多生成 ${IMAGE_GENERATION_RATE_LIMIT_MAX_IMAGES} 张图，请 ${retryAfterSeconds} 秒后再试。`
+}
 
 function createOpenAITimeoutError(timeoutSeconds: number) {
   return `请求超时：超过 ${timeoutSeconds} 秒仍未完成，请稍后重试或提高超时时间。`
@@ -1132,6 +1169,18 @@ export async function submitTask(options: { allowFullMask?: boolean; useCurrentA
     return
   }
 
+  const normalizedParams = normalizeParamsForSettings(params, requestSettings, { hasInputImages: inputImages.length > 0 })
+  const rateLimit = getImageGenerationRateLimit(useStore.getState().tasks, normalizedParams.n)
+  if (!rateLimit.allowed) {
+    showToast(formatImageGenerationRateLimitMessage(rateLimit), 'error')
+    return
+  }
+
+  const normalizedParamPatch = getChangedParams(params, normalizedParams)
+  if (Object.keys(normalizedParamPatch).length) {
+    useStore.getState().setParams(normalizedParamPatch)
+  }
+
   let orderedInputImages = inputImages
   let maskImageId: string | null = null
   let maskTargetImageId: string | null = null
@@ -1167,12 +1216,6 @@ export async function submitTask(options: { allowFullMask?: boolean; useCurrentA
   // 持久化输入图片到 IndexedDB（此前只在内存缓存中）
   for (const img of orderedInputImages) {
     await storeImage(img.dataUrl)
-  }
-
-  const normalizedParams = normalizeParamsForSettings(params, requestSettings, { hasInputImages: orderedInputImages.length > 0 })
-  const normalizedParamPatch = getChangedParams(params, normalizedParams)
-  if (Object.keys(normalizedParamPatch).length) {
-    useStore.getState().setParams(normalizedParamPatch)
   }
 
   const taskId = genId()
